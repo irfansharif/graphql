@@ -1,13 +1,22 @@
 language: go
 
+env:
+  global:
+  - secure: CsVnlfURpWQ0wlZqEQPdBEsc/Cq0lnH5msU1x3vqFechYA3q9F9nQ8DFgr0AFxTAg9k29JNgYwKnvD0hzby3HxF+sVp4nkJS50cqq+s2zpQUv26t5slVQ7WjPEwKo3+/MsdAAgn7UKCPZb3JY9uS8pRSnRUo2VJGk/rLJ3SX8W3uddB3PNUmhAVBNeYhopiQO517T1JptwIBRhmwMwZpq5x/+WJSekcKReY7qWBT+8YtYQWK6n8CvkM6gPdLIee/tO9e5b2z9XFQ1s8l9b7dsswMezh6FdOCjJLTN1Y/q9vZ7/cEp5FAgce+AX94cGTvCf7dh/wDUsRygbUKpKwZlQNAT5QziA3/h1dGuhe3wVSgh5TnIQSjrsZ7DlyGzgANcbOkLITt20EZrns5sriw/UUDBoBCW0af1/wmhMVVEfaZMmSbHSkL2qxR2yEhjXdwaekbmNA7/jvo5hLwjdyuQff2rKe+b1aao8HoDpoj6nzVyni+PbaxojoHDAtS04/UCHOZkRc574pX0R2DiGi2LGX7dUTefFaZSjghNSyfji6prdZ5GmBYJAZoFFZbWM8++jdAqi3spK2df7zC4GPcfYoB7pt2/en0gIYVf7SSOKZGqNaGBy8dzEuCO4OKm+cfQ6wEQn1rli1iRkiJjJ+5yS6AJVUwmxoYqJd+Dxl3Kw0=
+
 go:
   - 1.4
 
 before_install:
-  - go get github.com/axw/gocov/gocov
   - go get github.com/mattn/goveralls
+  - go get github.com/wadey/gocovmerge
   - go get golang.org/x/tools/cmd/cover
 
 script:
-  - $HOME/gopath/bin/goveralls -service=travis-ci
+  - export PKGS=$(go list ./... | grep -v /vendor/)
+  - export PKGS_DELIM=$(echo "$PKGS" | paste -sd "," -)
+  - go list -f '{{if or (len .TestGoFiles) (len .XTestGoFiles)}}go test -covermode count -coverprofile {{.Name}}_{{len .Imports}}_{{len .Deps}}.coverprofile -coverpkg $PKGS_DELIM {{.ImportPath}}{{end}}' $PKGS | xargs -I {} bash -c {}
+  - gocovmerge `ls *.coverprofile` > coverage.out
+  - rm *.coverprofile
+  - $HOME/gopath/bin/goveralls -coverprofile=coverage.out -service=travis-ci
   - go vet ./...
